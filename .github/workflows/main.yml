@@ -1,0 +1,150 @@
+JSApp/
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── AndroidManifest.xml
+│   │   │   ├── java/com/example/jsapp/AutoClickService.kt
+│   │   │   └── res/
+│   │   │       └── values/strings.xml
+│   ├── build.gradle
+├── build.gradle
+├── settings.gradle
+└── .github/
+    └── workflows/
+        └── build.yml
+rootProject.name = "JSApp"
+include ':app'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android' version '1.8.20' apply false
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+
+android {
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.example.jsapp"
+        minSdk 23
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.20"
+}
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.jsapp">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        
+        <service
+            android:name=".AutoClickService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <activity android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeAllMask"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="100"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
+    android:description="@string/app_name"
+    android:settingsActivity=""
+    />
+package com.example.jsapp
+
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
+import android.os.Handler
+import android.os.Looper
+
+class AutoClickService : AccessibilityService() {
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val points = listOf(
+        Pair(538, 1935) to 40_000L,
+        Pair(546, 1358) to 2_000L,
+        Pair(84, 230) to 2_000L,
+        Pair(280, 2050) to 2_000L,
+        Pair(760, 2140) to 2_000L
+    )
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        handler.postDelayed({ startClickLoop(0) }, 7_000)
+    }
+
+    private fun startClickLoop(index: Int) {
+        val (point, waitTime) = points[index]
+        performClick(point.first.toFloat(), point.second.toFloat())
+
+        handler.postDelayed({
+            val nextIndex = (index + 1) % points.size
+            startClickLoop(nextIndex)
+        }, waitTime)
+    }
+
+    private fun performClick(x: Float, y: Float) {
+        val path = Path().apply { moveTo(x, y) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
+            .build()
+        dispatchGesture(gesture, null, null)
+    }
+
+    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {}
+    override fun onInterrupt() {}
+}
+package com.example.jsapp
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 这里不需要布局，App启动即可
+    }
+}
+<resources>
+    <string name="app_name">JS</string>
+</resources>
